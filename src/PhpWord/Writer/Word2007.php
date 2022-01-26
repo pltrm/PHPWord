@@ -21,7 +21,6 @@ use PhpOffice\PhpWord\Element\Section;
 use PhpOffice\PhpWord\Media;
 use PhpOffice\PhpWord\PhpWord;
 use PhpOffice\PhpWord\Shared\ZipArchive;
-use Exception;
 
 /**
  * Word2007 writer
@@ -41,11 +40,6 @@ class Word2007 extends AbstractWriter implements WriterInterface
      * @var array
      */
     private $relationships = array();
-
-    /**
-     * @var array
-     */
-    protected $xmlErrors = [];
 
     /**
      * Create new Word2007 writer
@@ -138,16 +132,10 @@ class Word2007 extends AbstractWriter implements WriterInterface
         $this->addComments($zip, $rId);
         $this->addChart($zip, $rId);
 
-        $this->xmlErrors = [];
         // Write parts
-        foreach ($this->parts as $partName => $filePartName) {
-            if ($filePartName != '') {
-                $xml = $this->getWriterPart($partName)->write();
-                if ($this->isValidXml($xml, $filename, $filePartName, $partName)) {
-                    throw new Exception('XML file is not valid');
-                }
-
-                $zip->addFromString($filePartName, $xml);
+        foreach ($this->parts as $partName => $fileName) {
+            if ($fileName != '') {
+                $zip->addFromString($fileName, $this->getWriterPart($partName)->write());
             }
         }
 
@@ -342,42 +330,5 @@ class Word2007 extends AbstractWriter implements WriterInterface
                 }
             }
         }
-    }
-
-    /**
-     * @param string $xml
-     * @param string $exportName
-     * @param string $partName
-     * @param string $fileName
-     * @return bool
-     */
-    protected function isValidXml(string $xml, string $exportName, string $partName, string $fileName): bool
-    {
-        if (trim($xml) == '') {
-            return false;
-        }
-        libxml_use_internal_errors(true);
-
-        if (!simplexml_load_string($xml)) {
-            foreach(libxml_get_errors() as $error){
-                $error = (array)$error;
-                $error['file'] = $fileName;
-                $error['part_name'] = $partName;
-                $error['export_name'] = $exportName;
-                $this->xmlErrors[] = $error;
-
-            }
-
-            return false;
-        }
-        return true;
-    }
-
-    /**
-     * @return array
-     */
-    public function getXmlErrors(): array
-    {
-        return $this->xmlErrors;
     }
 }
