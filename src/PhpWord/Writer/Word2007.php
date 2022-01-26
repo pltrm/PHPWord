@@ -138,14 +138,13 @@ class Word2007 extends AbstractWriter implements WriterInterface
         $this->addComments($zip, $rId);
         $this->addChart($zip, $rId);
 
+        $exportName = basename($filename);
         $this->xmlErrors = [];
         // Write parts
         foreach ($this->parts as $partName => $filePartName) {
             if ($filePartName != '') {
                 $xml = $this->getWriterPart($partName)->write();
-                if ($this->isValidXml($xml, $filename, $filePartName, $partName)) {
-                    throw new Exception('XML file is not valid');
-                }
+                $this->xmlErrors = array_merge($this->xmlErrors, $this->validateXml($xml, $exportName, $filePartName, $partName));
 
                 $zip->addFromString($filePartName, $xml);
             }
@@ -154,6 +153,10 @@ class Word2007 extends AbstractWriter implements WriterInterface
         // Close zip archive and cleanup temp file
         $zip->close();
         $this->cleanupTempFile();
+
+        if (!empty($this->xmlErrors)) {
+            throw new Exception('XML is not valid. ' . json_encode($this->xmlErrors));
+        }
     }
 
     /**
@@ -349,28 +352,30 @@ class Word2007 extends AbstractWriter implements WriterInterface
      * @param string $exportName
      * @param string $partName
      * @param string $fileName
-     * @return bool
+     * @return array
      */
-    protected function isValidXml(string $xml, string $exportName, string $partName, string $fileName): bool
+    protected function validateXml(string $xml, string $exportName, string $fileName, string $partName): array
     {
+        $xmlErrors = [];
+
         if (trim($xml) == '') {
-            return false;
+            return $xmlErrors;
         }
+
         libxml_use_internal_errors(true);
 
-        if (!simplexml_load_string($xml)) {
-            foreach(libxml_get_errors() as $error){
+        if (simplexml_load_string($xml) === false) {
+            foreach(libxml_get_errors() as $error) {
                 $error = (array)$error;
                 $error['file'] = $fileName;
                 $error['part_name'] = $partName;
                 $error['export_name'] = $exportName;
-                $this->xmlErrors[] = $error;
+                $xmlErrors[] = $error;
 
             }
-
-            return false;
         }
-        return true;
+
+        return $xmlErrors;
     }
 
     /**
