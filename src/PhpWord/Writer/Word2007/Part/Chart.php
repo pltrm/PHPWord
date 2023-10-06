@@ -396,7 +396,7 @@ class Chart extends AbstractPart
                 $xmlWriter->endElement(); // c:txPr
             }
 
-            if (is_string($style->getShowValList()[$index])) {
+            if ($style->getShowValList() && is_string($style->getShowValList()[$index])) {
                 $xmlWriter->writeElementBlock("c:dLblPos", 'val', $style->getShowValList()[$index]);
             }
             foreach ($style->getDataLabelOptions() as $option => $val) {
